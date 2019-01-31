@@ -2,6 +2,7 @@
 using System.ComponentModel;
 
 namespace Dbquity {
+    using Implementation;
     class Item : IPropertyOwner {
         public event PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
@@ -26,20 +27,21 @@ namespace Dbquity {
                     case nameof(Label): Label = (string)value; return;
                     case nameof(Cost): this.Change(cost, (decimal?)value, () => cost = (decimal?)value, propertyName); return;
                     case nameof(LabelIsDefaulted):
-                    case nameof(CostIsDefaulted): throw new ArgumentOutOfRangeException($"Cannot set: '{propertyName}'.");
+                    case nameof(CostIsDefaulted): throw IPropertyOwnerImplementations.CannotSetPropertyException(propertyName);
                 }
                 throw IPropertyOwnerImplementations.UnknownPropertyException(propertyName);
             }
         }
-        public bool CanBeDefaulted(string propertyName) {
+        public bool HasProperty(string propertyName) {
             switch (propertyName) {
                 case nameof(Label):
-                case nameof(Cost): return true;
+                case nameof(Cost):
                 case nameof(Name):
                 case nameof(LabelIsDefaulted):
-                case nameof(CostIsDefaulted): return false;
+                case nameof(CostIsDefaulted):
+                    return true;
             }
-            throw IPropertyOwnerImplementations.UnknownPropertyException(propertyName);
+            return false;
         }
         public const string LabelDefault = "<label it>";
         public string Label { get => label ?? LabelDefault; set => this.Change(label, value, () => label = value); } string label;

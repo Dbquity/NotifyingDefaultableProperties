@@ -2,11 +2,10 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace Dbquity {
-    internal static class IPropertyOwnerImplementations {
+namespace Dbquity.Implementation {
+    public static class IPropertyOwnerImplementations {
         public static bool Change<T>(
             this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {
             if (oldValue?.Equals(value) ?? (object)value is null)
@@ -16,13 +15,13 @@ namespace Dbquity {
         }
         private static void DoChange<T>(IPropertyOwner owner, T oldValue, T value, Action setter, string propertyName) {
             // TODO: propagate notification to derived properties on owner and consider linked owners
-            string propertyIsDefaulted = propertyName + "IsDefaulted";
-            PropertyInfo isDefaulted = owner.GetType().GetProperty(propertyIsDefaulted);
-            bool isDefaultedChange = isDefaulted != null && isDefaulted.PropertyType == typeof(bool) &&
-                ((bool)isDefaulted.GetValue(owner) ^ ((object)value is null));
-            if (isDefaultedChange)
+            bool isDefaultedChange = owner.CanBeDefaulted(propertyName) &&
+                (owner.IsDefaulted(propertyName) ^ ((object)value is null));
+            string propertyIsDefaulted = null;
+            if (isDefaultedChange) {
+                propertyIsDefaulted = IPropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);
                 PropertyChangeNotifier.OnChanging(owner, propertyIsDefaulted, propertyName);
-            else
+            } else
                 PropertyChangeNotifier.OnChanging(owner, propertyName);
             setter();
             if (isDefaultedChange)
@@ -90,5 +89,7 @@ namespace Dbquity {
         }
         public static Exception UnknownPropertyException(string propertyName) =>
             new ArgumentOutOfRangeException(nameof(propertyName), $"Unknown property: '{propertyName}'.");
+        public static Exception CannotSetPropertyException(string propertyName) =>
+            new ArgumentOutOfRangeException(nameof(propertyName), $"Cannot set: '{propertyName}'.");
     }
 }
