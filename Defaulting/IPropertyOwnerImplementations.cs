@@ -9,7 +9,7 @@ namespace Dbquity {
     internal static class IPropertyOwnerImplementations {
         public static bool Change<T>(
             this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {
-            if (oldValue?.Equals(value) ?? value is null)
+            if (oldValue?.Equals(value) ?? (object)value is null)
                 return false;
             DoChange(owner, oldValue, value, setter, propertyName);
             return true;
@@ -19,7 +19,7 @@ namespace Dbquity {
             string propertyIsDefaulted = propertyName + "IsDefaulted";
             PropertyInfo isDefaulted = owner.GetType().GetProperty(propertyIsDefaulted);
             bool isDefaultedChange = isDefaulted != null && isDefaulted.PropertyType == typeof(bool) &&
-                ((bool)isDefaulted.GetValue(owner) ^ (value is null));
+                ((bool)isDefaulted.GetValue(owner) ^ ((object)value is null));
             if (isDefaultedChange)
                 PropertyChangeNotifier.OnChanging(owner, propertyIsDefaulted, propertyName);
             else
