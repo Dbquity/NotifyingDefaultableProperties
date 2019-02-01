@@ -12,8 +12,6 @@ namespace Dbquity {
                     case nameof(Cost): return Cost;
                     case nameof(CostIsDefaulted): return CostIsDefaulted;
                     case nameof(Price): return Price;
-                    case nameof(Name) + nameof(IPropertyOwnerExtensions.IsDefaulted): return Name is null;
-                    case nameof(Price) + nameof(IPropertyOwnerExtensions.IsDefaulted): return false;
                 }
                 throw IPropertyOwnerImplementations.UnknownPropertyException(propertyName);
             }
@@ -24,10 +22,10 @@ namespace Dbquity {
                     case nameof(Cost): this.Change(cost, (decimal?)value, () => cost = (decimal?)value, propertyName); return;
                     case nameof(LabelIsDefaulted):
                     case nameof(CostIsDefaulted):
-                    case nameof(Name) + nameof(IPropertyOwnerExtensions.IsDefaulted):
-                    case nameof(Price) + nameof(IPropertyOwnerExtensions.IsDefaulted):
                         throw IPropertyOwnerImplementations.CannotSetPropertyException(propertyName);
-                    case nameof(Price): Price = (decimal)(value ?? default(decimal)); return;
+                    case nameof(Price): Price = value is null ?
+                            throw IPropertyOwnerExtensions.CannotBeDefaultedException(nameof(Price)) : (decimal)value;
+                        return;
                 }
                 throw IPropertyOwnerImplementations.UnknownPropertyException(propertyName);
             }

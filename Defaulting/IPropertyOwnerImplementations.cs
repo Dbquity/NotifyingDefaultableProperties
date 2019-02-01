@@ -23,7 +23,8 @@ namespace Dbquity.Implementation {
             if (AreEqual(oldValue, value))
                 return false;
             // TODO: propagate notification to derived properties on owner and consider linked owners
-            bool isDefaultedChange = owner.IsDefaulted(propertyName) ^ ((object)value is null);
+            bool isDefaultedChange = owner.CanBeDefaulted(propertyName) &&
+                (owner.IsDefaulted(propertyName) ^ ((object)value is null));
             string propertyIsDefaulted = null;
             if (isDefaultedChange) {
                 propertyIsDefaulted = IPropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);

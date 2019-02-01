@@ -17,10 +17,13 @@ namespace Dbquity {
                     throw IPropertyOwnerImplementations.UnknownPropertyException(propertyName);
                 if (propertyName.EndsWith(nameof(IPropertyOwnerExtensions.IsDefaulted)))
                     throw IPropertyOwnerImplementations.CannotSetPropertyException(propertyName);
+                if (value is null && propertyName == nameof(Item.Price))
+                    throw IPropertyOwnerExtensions.CannotBeDefaultedException(nameof(Item.Price));
+                // TODO: assert that value is of an assignable type - requires type info about properties, which we don't have, yet
                 if (!bag.TryGetValue(propertyName, out object oldValue))
                     oldValue = GetDefaultValue(propertyName);
                 this.Change(oldValue, value, () => {
-                    if (value is null)
+                    if (value is null) 
                         bag.Remove(propertyName);
                     else
                         bag[propertyName] = value;

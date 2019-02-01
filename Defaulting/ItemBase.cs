@@ -19,8 +19,6 @@ namespace Dbquity {
                 case nameof(Item.Price):
                 case nameof(Item.LabelIsDefaulted):
                 case nameof(Item.CostIsDefaulted):
-                case nameof(Item.Name) + nameof(IPropertyOwnerExtensions.IsDefaulted):
-                case nameof(Item.Price) + nameof(IPropertyOwnerExtensions.IsDefaulted):
                     return true;
             }
             return false;

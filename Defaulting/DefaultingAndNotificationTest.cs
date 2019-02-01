@@ -68,7 +68,7 @@ namespace Dbquity {
             log.Clear();
             i.Name = null;
             CollectionAssert.AreEqual(
-                new[] { "-NameIsDefaulted: False", "-Name: Testing, testing ...", "+Name: ", "+NameIsDefaulted: True" }, log);
+                new[] { "-Name: Testing, testing ...", "+Name: " }, log);
         }
         [TestMethod]
         public void DelayedPropertyChangeNotifications() {
@@ -79,7 +79,7 @@ namespace Dbquity {
             i.Cost = 1; // ⚡Cost and CostIsDefaulted Changing, Changed
             log.Add("after Cost");
             CollectionAssert.AreEqual(new[] {
-                "-NameIsDefaulted: True", "-Name: ", "+Name: Good name", "+NameIsDefaulted: False", "after Name",
+                "-Name: ", "+Name: Good name", "after Name",
                 "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
 
             log.Clear();
@@ -95,16 +95,20 @@ namespace Dbquity {
             CollectionAssert.AreEqual(new[] { "+Name: Another name", "+Cost: 2" }, log);
 
             Assert.AreEqual(default(decimal), i.Price);
-            i.SetToDefault("Price");
-            Assert.AreEqual(default(decimal), i.Price);
-            i.Price = 233M;
-            Assert.AreEqual(233M, i.Price);
-            i["Price"] = null;
-            Assert.AreEqual(default(decimal), i.Price);
+            i.Price = 144M;
+            Assert.AreEqual(144M, i.Price);
             log.Clear();
+            Assert.AreEqual(PriceDefaultingError,
+                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i.SetToDefault("Price")).Message);
+            Assert.AreEqual(144M, i.Price);
+            Assert.AreEqual(PriceDefaultingError,
+                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i["Price"] = null).Message);
+            Assert.AreEqual(144M, i.Price);
+            Assert.AreEqual(0, log.Count);
             i.Price = 89;
-            CollectionAssert.AreEqual(new[] { "-Price: 0", "+Price: 89" }, log);
+            CollectionAssert.AreEqual(new[] { "-Price: 144", "+Price: 89" }, log);
         }
+        const string PriceDefaultingError = "'Price' cannot be defaulted.\r\nParameter name: propertyName";
         [TestMethod]
         public void DelayedPropertyChangeNotificationsOnItemOnPropertyBag() {
             ItemOnPropertyBag i = new ItemOnPropertyBag();
@@ -116,7 +120,7 @@ namespace Dbquity {
             Assert.IsFalse(i.IsDefaulted("Cost"));
             log.Add("after Cost");
             CollectionAssert.AreEqual(new[] {
-                "-NameIsDefaulted: True", "-Name: ", "+Name: Good name", "+NameIsDefaulted: False", "after Name",
+                "-Name: ", "+Name: Good name", "after Name",
                 "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
 
             log.Clear();
@@ -134,15 +138,16 @@ namespace Dbquity {
             Assert.AreEqual(default(decimal), i["Price"]);
             i["Price"] = 144M;
             Assert.AreEqual(144M, i["Price"]);
-            i.SetToDefault("Price");
-            Assert.AreEqual(default(decimal), i["Price"]);
-            i["Price"] = 233M;
-            Assert.AreEqual(233M, i["Price"]);
-            i["Price"] = null;
-            Assert.AreEqual(default(decimal), i["Price"]);
             log.Clear();
-            i["Price"] = 89;
-            CollectionAssert.AreEqual(new[] { "-PriceIsDefaulted: True", "-Price: 0", "+Price: 89", "+PriceIsDefaulted: False" }, log);
+            Assert.AreEqual(PriceDefaultingError,
+                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i.SetToDefault("Price")).Message);
+            Assert.AreEqual(144M, i["Price"]);
+            Assert.AreEqual(PriceDefaultingError,
+                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i["Price"] = null).Message);
+            Assert.AreEqual(144M, i["Price"]);
+            Assert.AreEqual(0, log.Count);
+            i["Price"] = 89M;
+            CollectionAssert.AreEqual(new[] { "-Price: 144", "+Price: 89" }, log);
         }
     }
 }
