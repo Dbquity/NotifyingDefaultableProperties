@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -6,17 +7,23 @@ using System.Runtime.CompilerServices;
 
 namespace Dbquity.Implementation {
     public static class IPropertyOwnerImplementations {
-        public static bool Change<T>(
-            this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {
-            if (oldValue?.Equals(value) ?? (object)value is null)
-                return false;
-            DoChange(owner, oldValue, value, setter, propertyName);
-            return true;
+        static bool AreEqual(object a, object b) {
+            if (a is IEnumerable enumerableA && b is IEnumerable enumerableB) {
+                IEnumerator enumeratorA = enumerableA.GetEnumerator();
+                IEnumerator enumeratorB = enumerableB.GetEnumerator();
+                while (enumeratorA.MoveNext())
+                    if (!enumeratorB.MoveNext() || !AreEqual(enumeratorA.Current, enumeratorB.Current))
+                        return false;                
+                return !enumeratorB.MoveNext();
+            }
+            return a?.Equals(b) ?? b is null;
         }
-        private static void DoChange<T>(IPropertyOwner owner, T oldValue, T value, Action setter, string propertyName) {
+        public static bool Change<T>(
+            this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {            
+            if (AreEqual(oldValue, value))
+                return false;
             // TODO: propagate notification to derived properties on owner and consider linked owners
-            bool isDefaultedChange = owner.CanBeDefaulted(propertyName) &&
-                (owner.IsDefaulted(propertyName) ^ ((object)value is null));
+            bool isDefaultedChange = owner.IsDefaulted(propertyName) ^ ((object)value is null);
             string propertyIsDefaulted = null;
             if (isDefaultedChange) {
                 propertyIsDefaulted = IPropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);
@@ -28,12 +35,6 @@ namespace Dbquity.Implementation {
                 PropertyChangeNotifier.OnChanged(owner, propertyName, propertyIsDefaulted);
             else
                 PropertyChangeNotifier.OnChanged(owner, propertyName);
-        }
-        public static bool Change<T>(
-            this IPropertyOwner owner, T[] oldValue, T[] value, Action setter, [CallerMemberName]string propertyName = null) {
-            if (oldValue?.SequenceEqual(value) ?? value is null)
-                return false;
-            DoChange(owner, oldValue, value, setter, propertyName);
             return true;
         }
         public class PropertyChangeNotifier : IDisposable {

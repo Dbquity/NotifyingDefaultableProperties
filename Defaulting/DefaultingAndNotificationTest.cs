@@ -1,10 +1,11 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.Collections.Generic;
 
 namespace Dbquity {
     [TestClass]
     public class DefaultingAndNotificationTest {
-        static List<string> CreateItemPropertyNotificationLog(Item i) {
+        static List<string> CreateItemPropertyNotificationLog(ItemBase i) {
             List<string> log = new List<string>();
             i.PropertyChanging += (s, e) =>
             log.Add($"-{e.PropertyName}: {((IPropertyOwner)s)[e.PropertyName]}");
@@ -15,9 +16,6 @@ namespace Dbquity {
         [TestMethod]
         public void DefaultsAndPropertyChangeNotifications() {
             Item i = new Item() { Name = "Testing, testing ..." };
-
-            Assert.IsFalse(i.CanBeDefaulted(nameof(Item.Name)));
-            Assert.IsTrue(i.CanBeDefaulted(nameof(Item.Label)));
 
             Assert.IsTrue(i.CostIsDefaulted);
             Assert.AreEqual(43L, i.Cost);
@@ -69,7 +67,8 @@ namespace Dbquity {
 
             log.Clear();
             i.Name = null;
-            CollectionAssert.AreEqual(new[] { "-Name: Testing, testing ...", "+Name: " }, log);
+            CollectionAssert.AreEqual(
+                new[] { "-NameIsDefaulted: False", "-Name: Testing, testing ...", "+Name: ", "+NameIsDefaulted: True" }, log);
         }
         [TestMethod]
         public void DelayedPropertyChangeNotifications() {
@@ -79,7 +78,8 @@ namespace Dbquity {
             log.Add("after Name");
             i.Cost = 1; // ⚡Cost and CostIsDefaulted Changing, Changed
             log.Add("after Cost");
-            CollectionAssert.AreEqual(new[] { "-Name: ", "+Name: Good name", "after Name",
+            CollectionAssert.AreEqual(new[] {
+                "-NameIsDefaulted: True", "-Name: ", "+Name: Good name", "+NameIsDefaulted: False", "after Name",
                 "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
 
             log.Clear();
@@ -91,8 +91,58 @@ namespace Dbquity {
                 i.Name = "Another name"; // no ⚡
                 CollectionAssert.AreEqual(new[] { "-Name: Good name", "after Name", "-Cost: 1", "after Cost" }, log);
                 log.Clear();
-            }// ⚡Name and Cost Changed
+            } // ⚡Name and Cost Changed
             CollectionAssert.AreEqual(new[] { "+Name: Another name", "+Cost: 2" }, log);
+
+            Assert.AreEqual(default(decimal), i.Price);
+            i.SetToDefault("Price");
+            Assert.AreEqual(default(decimal), i.Price);
+            i.Price = 233M;
+            Assert.AreEqual(233M, i.Price);
+            i["Price"] = null;
+            Assert.AreEqual(default(decimal), i.Price);
+            log.Clear();
+            i.Price = 89;
+            CollectionAssert.AreEqual(new[] { "-Price: 0", "+Price: 89" }, log);
+        }
+        [TestMethod]
+        public void DelayedPropertyChangeNotificationsOnItemOnPropertyBag() {
+            ItemOnPropertyBag i = new ItemOnPropertyBag();
+            List<string> log = CreateItemPropertyNotificationLog(i);
+            i["Name"] = "Good name"; // ⚡Name Changing, Changed
+            log.Add("after Name");
+            Assert.IsTrue(i.IsDefaulted("Cost"));
+            i["Cost"] = 1; // ⚡Cost and CostIsDefaulted Changing, Changed
+            Assert.IsFalse(i.IsDefaulted("Cost"));
+            log.Add("after Cost");
+            CollectionAssert.AreEqual(new[] {
+                "-NameIsDefaulted: True", "-Name: ", "+Name: Good name", "+NameIsDefaulted: False", "after Name",
+                "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
+
+            log.Clear();
+            using (i.DelayedPropertyChangeNotification()) {
+                i["Name"] = "No name"; // ⚡Name Changing
+                log.Add("after Name");
+                i["Cost"] = 2; // ⚡Cost Changing
+                log.Add("after Cost");
+                i["Name"] = "Another name"; // no ⚡
+                CollectionAssert.AreEqual(new[] { "-Name: Good name", "after Name", "-Cost: 1", "after Cost" }, log);
+                log.Clear();
+            } // ⚡Name and Cost Changed
+            CollectionAssert.AreEqual(new[] { "+Name: Another name", "+Cost: 2" }, log);
+
+            Assert.AreEqual(default(decimal), i["Price"]);
+            i["Price"] = 144M;
+            Assert.AreEqual(144M, i["Price"]);
+            i.SetToDefault("Price");
+            Assert.AreEqual(default(decimal), i["Price"]);
+            i["Price"] = 233M;
+            Assert.AreEqual(233M, i["Price"]);
+            i["Price"] = null;
+            Assert.AreEqual(default(decimal), i["Price"]);
+            log.Clear();
+            i["Price"] = 89;
+            CollectionAssert.AreEqual(new[] { "-PriceIsDefaulted: True", "-Price: 0", "+Price: 89", "+PriceIsDefaulted: False" }, log);
         }
     }
 }
