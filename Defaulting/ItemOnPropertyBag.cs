@@ -1,10 +1,8 @@
-﻿using Dbquity;
-using Dbquity.Implementation;
+﻿using Dbquity.Implementation;
 using System;
 using System.Collections.Generic;
 
 namespace Defaulting.TestItems {
-    using static PropertyOwnerExtensions;
     using static PropertyOwnerImplementations;
     class ItemOnPropertyBag : ItemBase {
         Dictionary<string, object> bag = new Dictionary<string, object>();
@@ -20,7 +18,7 @@ namespace Defaulting.TestItems {
             switch (propertyName) {
                 case nameof(Item.Label): return LabelDefault;
                 case nameof(Item.Cost): return CostDefault;
-                case nameof(Item.Price): return default(decimal); // TODO: provide type instead
+                case nameof(Item.Price): return default(decimal); // TODO: provide type instead and let implementations get default
             }
             return null;
         }
