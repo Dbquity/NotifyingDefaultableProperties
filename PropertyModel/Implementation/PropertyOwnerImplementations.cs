@@ -20,22 +20,24 @@ namespace Dbquity.Implementation {
             return a?.Equals(b) ?? b is null;
         }
         public static bool Change<T>(
-            this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {
+            this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null,
+            params string[] derivedProperties) {
             if (AreEqual(oldValue, value))
                 return false;
-            // TODO: propagate notification to derived properties on owner and consider linked owners
-            string propertyIsDefaulted = PropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);
-            bool isDefaultedChange = owner.HasProperty(propertyIsDefaulted) &&
+            string isDefaultedPropertyName = PropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);
+            bool isDefaultedChange = owner.HasProperty(isDefaultedPropertyName) &&
                 (owner.IsDefaulted(propertyName) ^ ((object)value is null));
+            PropertyChangeNotifier.OnChanging(owner, propertyName);
             if (isDefaultedChange)
-                PropertyChangeNotifier.OnChanging(owner, propertyIsDefaulted, propertyName);
-            else
-                PropertyChangeNotifier.OnChanging(owner, propertyName);
+                PropertyChangeNotifier.OnChanging(owner, isDefaultedPropertyName);
+            if (derivedProperties?.Any() ?? false)
+                PropertyChangeNotifier.OnChanging(owner, derivedProperties);
             setter();
+            PropertyChangeNotifier.OnChanged(owner, propertyName);
             if (isDefaultedChange)
-                PropertyChangeNotifier.OnChanged(owner, propertyName, propertyIsDefaulted);
-            else
-                PropertyChangeNotifier.OnChanged(owner, propertyName);
+                PropertyChangeNotifier.OnChanged(owner, isDefaultedPropertyName);
+            if (derivedProperties?.Any() ?? false)
+                PropertyChangeNotifier.OnChanged(owner, derivedProperties);
             return true;
         }
         internal class PropertyChangeNotifier : IDisposable {

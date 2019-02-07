@@ -26,7 +26,7 @@ namespace Defaulting {
             i.Cost = 89L;
             Assert.IsFalse(i.CostIsDefaulted);
             Assert.AreEqual(89L, i.Cost);
-            CollectionAssert.AreEqual(new[] { "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 89", "+CostIsDefaulted: False" }, log);
+            CollectionAssert.AreEqual(new[] { "-Cost: 43", "-CostIsDefaulted: True", "+Cost: 89", "+CostIsDefaulted: False" }, log);
 
             log.Clear();
             i["Cost"] = TestItems.ItemBase.CostDefault;
@@ -38,7 +38,7 @@ namespace Defaulting {
             i["Cost"] = null;
             Assert.IsTrue(i.CostIsDefaulted);
             Assert.AreEqual(43L, i.Cost);
-            CollectionAssert.AreEqual(new[] { "-CostIsDefaulted: False", "-Cost: 43", "+Cost: 43", "+CostIsDefaulted: True" }, log);
+            CollectionAssert.AreEqual(new[] { "-Cost: 43", "-CostIsDefaulted: False", "+Cost: 43", "+CostIsDefaulted: True" }, log);
 
             log.Clear();
             ipo.SetToDefault(nameof(i.Cost));
@@ -52,7 +52,7 @@ namespace Defaulting {
             Assert.IsFalse(i.LabelIsDefaulted);
             Assert.AreEqual("Well known", i.Label);
             CollectionAssert.AreEqual(
-                new[] { "-LabelIsDefaulted: True", "-Label: <label it>", "+Label: Well known", "+LabelIsDefaulted: False" }, log);
+                new[] { "-Label: <label it>", "-LabelIsDefaulted: True", "+Label: Well known", "+LabelIsDefaulted: False" }, log);
 
             log.Clear();
             i.Label = TestItems.ItemBase.LabelDefault;
@@ -65,7 +65,7 @@ namespace Defaulting {
             Assert.IsTrue(i.LabelIsDefaulted);
             Assert.AreEqual(TestItems.ItemBase.LabelDefault, i.Label);
             CollectionAssert.AreEqual(
-                new[] { "-LabelIsDefaulted: False", "-Label: <label it>", "+Label: <label it>", "+LabelIsDefaulted: True" }, log);
+                new[] { "-Label: <label it>", "-LabelIsDefaulted: False", "+Label: <label it>", "+LabelIsDefaulted: True" }, log);
 
             log.Clear();
             i.Name = null;
@@ -83,7 +83,7 @@ namespace Defaulting {
             log.Add("after Cost");
             CollectionAssert.AreEqual(new[] {
                 "-Name: ", "+Name: Good name", "after Name",
-                "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
+                "-Cost: 43", "-CostIsDefaulted: True", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
 
             log.Clear();
             using (ipo.DelayedPropertyChangeNotification()) {
@@ -118,7 +118,7 @@ namespace Defaulting {
             log.Add("after Cost");
             CollectionAssert.AreEqual(new[] {
                 "-Name: ", "+Name: Good name", "after Name",
-                "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
+                "-Cost: 43", "-CostIsDefaulted: True", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
 
             log.Clear();
             using (i.DelayedPropertyChangeNotification()) {
