@@ -3,33 +3,33 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Dbquity.Implementation {
-    public static class IPropertyOwnerImplementations {
+    public static class PropertyOwnerImplementations {
         static bool AreEqual(object a, object b) {
             if (a is IEnumerable enumerableA && b is IEnumerable enumerableB) {
                 IEnumerator enumeratorA = enumerableA.GetEnumerator();
                 IEnumerator enumeratorB = enumerableB.GetEnumerator();
                 while (enumeratorA.MoveNext())
                     if (!enumeratorB.MoveNext() || !AreEqual(enumeratorA.Current, enumeratorB.Current))
-                        return false;                
+                        return false;
                 return !enumeratorB.MoveNext();
             }
             return a?.Equals(b) ?? b is null;
         }
         public static bool Change<T>(
-            this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {            
+            this IPropertyOwner owner, T oldValue, T value, Action setter, [CallerMemberName]string propertyName = null) {
             if (AreEqual(oldValue, value))
                 return false;
             // TODO: propagate notification to derived properties on owner and consider linked owners
-            bool isDefaultedChange = owner.CanBeDefaulted(propertyName) &&
+            string propertyIsDefaulted = PropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);
+            bool isDefaultedChange = owner.HasProperty(propertyIsDefaulted) &&
                 (owner.IsDefaulted(propertyName) ^ ((object)value is null));
-            string propertyIsDefaulted = null;
-            if (isDefaultedChange) {
-                propertyIsDefaulted = IPropertyOwnerExtensions.IsDefaultedPropertyName(propertyName);
+            if (isDefaultedChange)
                 PropertyChangeNotifier.OnChanging(owner, propertyIsDefaulted, propertyName);
-            } else
+            else
                 PropertyChangeNotifier.OnChanging(owner, propertyName);
             setter();
             if (isDefaultedChange)
@@ -38,7 +38,7 @@ namespace Dbquity.Implementation {
                 PropertyChangeNotifier.OnChanged(owner, propertyName);
             return true;
         }
-        public class PropertyChangeNotifier : IDisposable {
+        internal class PropertyChangeNotifier : IDisposable {
             static Dictionary<IPropertyOwner, PropertyChangeNotifier> activeNotifiers =
                 new Dictionary<IPropertyOwner, PropertyChangeNotifier>();
             readonly IPropertyOwner owner;
@@ -93,5 +93,57 @@ namespace Dbquity.Implementation {
             new ArgumentOutOfRangeException(nameof(propertyName), $"Unknown property: '{propertyName}'.");
         public static Exception CannotSetPropertyException(string propertyName) =>
             new ArgumentOutOfRangeException(nameof(propertyName), $"Cannot set: '{propertyName}'.");
+        public static Exception TryReflectionGet(this IPropertyOwner owner, string propertyName, out object value) {
+            PropertyInfo info = owner.GetType().GetProperty(propertyName);
+            if (info is null) {
+                value = null;
+                return UnknownPropertyException(propertyName);
+            }
+            value = info.GetValue(owner);
+            return null;
+        }
+        public static Exception TryReflectionSet(this IPropertyOwner owner, string propertyName, object value) {
+            PropertyInfo info = owner.GetType().GetProperty(propertyName);
+            if (info is null)
+                return UnknownPropertyException(propertyName);
+            if (!info.CanWrite)
+                return CannotSetPropertyException(propertyName);
+            try {
+                info.SetValue(owner, value);
+            } catch (Exception ex) {
+                return ex.InnerException is null ? ex : ex.InnerException;
+            }
+            return null;
+        }
+        public static Exception TryDictionaryGet(this IPropertyOwner owner, IReadOnlyDictionary<string, object> bag,
+            Func<object> defaultGetter, string propertyName, out object value) {
+            if (!owner.HasProperty(propertyName)) {
+                value = null;
+                return UnknownPropertyException(propertyName);
+            }
+            if (propertyName.EndsWith(nameof(PropertyOwnerExtensions.IsDefaulted))) {
+                string underlyingPropertyName =
+                    propertyName.Substring(0, propertyName.Length - nameof(PropertyOwnerExtensions.IsDefaulted).Length);
+                value = !bag.ContainsKey(underlyingPropertyName);
+            } else if (!bag.TryGetValue(propertyName, out value))
+                value = defaultGetter();
+            return null;
+        }
+        public static Exception TryDictionarySet(this IPropertyOwner owner, IDictionary<string, object> bag,
+            Func<object> defaultGetter, string propertyName, object value) {
+            if (!owner.HasProperty(propertyName))
+                return UnknownPropertyException(propertyName);
+            if (propertyName.EndsWith(nameof(PropertyOwnerExtensions.IsDefaulted)))
+                return CannotSetPropertyException(propertyName);
+            if (!bag.TryGetValue(propertyName, out object oldValue))
+                oldValue = defaultGetter();
+            owner.Change(oldValue, value, () => {
+                if (value is null)
+                    bag.Remove(propertyName);
+                else // TODO: check that value is of an assignable type - requires type info, which we don't have, yet
+                    bag[propertyName] = value;
+            }, propertyName);
+            return null;
+        }
     }
 }

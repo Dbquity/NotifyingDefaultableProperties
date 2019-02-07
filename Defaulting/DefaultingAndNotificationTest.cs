@@ -1,11 +1,12 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Dbquity;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 
-namespace Dbquity {
+namespace Defaulting {
     [TestClass]
     public class DefaultingAndNotificationTest {
-        static List<string> CreateItemPropertyNotificationLog(ItemBase i) {
+        static List<string> CreateItemPropertyNotificationLog(IPropertyOwner i) {
             List<string> log = new List<string>();
             i.PropertyChanging += (s, e) =>
             log.Add($"-{e.PropertyName}: {((IPropertyOwner)s)[e.PropertyName]}");
@@ -15,7 +16,8 @@ namespace Dbquity {
         }
         [TestMethod]
         public void DefaultsAndPropertyChangeNotifications() {
-            Item i = new Item() { Name = "Testing, testing ..." };
+            dynamic i = new TestItems.Item() { Name = "Testing, testing ..." };
+            IPropertyOwner ipo = (IPropertyOwner)i;
 
             Assert.IsTrue(i.CostIsDefaulted);
             Assert.AreEqual(43L, i.Cost);
@@ -27,7 +29,7 @@ namespace Dbquity {
             CollectionAssert.AreEqual(new[] { "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 89", "+CostIsDefaulted: False" }, log);
 
             log.Clear();
-            i["Cost"] = Item.CostDefault;
+            i["Cost"] = TestItems.ItemBase.CostDefault;
             Assert.IsFalse(i.CostIsDefaulted);
             Assert.AreEqual(43L, i.Cost);
             CollectionAssert.AreEqual(new[] { "-Cost: 89", "+Cost: 43" }, log);
@@ -39,7 +41,7 @@ namespace Dbquity {
             CollectionAssert.AreEqual(new[] { "-CostIsDefaulted: False", "-Cost: 43", "+Cost: 43", "+CostIsDefaulted: True" }, log);
 
             log.Clear();
-            i.SetToDefault(nameof(Item.Cost));
+            ipo.SetToDefault(nameof(i.Cost));
             Assert.AreEqual(0, log.Count);
 
             Assert.IsTrue(i.LabelIsDefaulted);
@@ -53,15 +55,15 @@ namespace Dbquity {
                 new[] { "-LabelIsDefaulted: True", "-Label: <label it>", "+Label: Well known", "+LabelIsDefaulted: False" }, log);
 
             log.Clear();
-            i.Label = Item.LabelDefault;
+            i.Label = TestItems.ItemBase.LabelDefault;
             Assert.IsFalse(i.LabelIsDefaulted);
             Assert.AreEqual("<label it>", i.Label);
             CollectionAssert.AreEqual(new[] { "-Label: Well known", "+Label: <label it>" }, log);
 
             log.Clear();
-            i.SetToDefault(nameof(Item.Label));
+            ipo.SetToDefault(nameof(i.Label));
             Assert.IsTrue(i.LabelIsDefaulted);
-            Assert.AreEqual(Item.LabelDefault, i.Label);
+            Assert.AreEqual(TestItems.ItemBase.LabelDefault, i.Label);
             CollectionAssert.AreEqual(
                 new[] { "-LabelIsDefaulted: False", "-Label: <label it>", "+Label: <label it>", "+LabelIsDefaulted: True" }, log);
 
@@ -72,7 +74,8 @@ namespace Dbquity {
         }
         [TestMethod]
         public void DelayedPropertyChangeNotifications() {
-            Item i = new Item();
+            dynamic i = new TestItems.Item();
+            IPropertyOwner ipo = (IPropertyOwner)i;
             List<string> log = CreateItemPropertyNotificationLog(i);
             i.Name = "Good name"; // ⚡Name Changing, Changed
             log.Add("after Name");
@@ -83,7 +86,7 @@ namespace Dbquity {
                 "-CostIsDefaulted: True", "-Cost: 43", "+Cost: 1", "+CostIsDefaulted: False", "after Cost" }, log);
 
             log.Clear();
-            using (i.DelayedPropertyChangeNotification()) {
+            using (ipo.DelayedPropertyChangeNotification()) {
                 i.Name = "No name"; // ⚡Name Changing
                 log.Add("after Name");
                 i.Cost = 2; // ⚡Cost Changing
@@ -98,20 +101,14 @@ namespace Dbquity {
             i.Price = 144M;
             Assert.AreEqual(144M, i.Price);
             log.Clear();
-            Assert.AreEqual(PriceDefaultingError,
-                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i.SetToDefault("Price")).Message);
-            Assert.AreEqual(144M, i.Price);
-            Assert.AreEqual(PriceDefaultingError,
-                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i["Price"] = null).Message);
-            Assert.AreEqual(144M, i.Price);
-            Assert.AreEqual(0, log.Count);
+            i["Price"] = null;
+            Assert.AreEqual(0M, i.Price);
             i.Price = 89;
-            CollectionAssert.AreEqual(new[] { "-Price: 144", "+Price: 89" }, log);
+            CollectionAssert.AreEqual(new[] { "-Price: 144", "+Price: 0", "-Price: 0", "+Price: 89" }, log);
         }
-        const string PriceDefaultingError = "'Price' cannot be defaulted.\r\nParameter name: propertyName";
         [TestMethod]
         public void DelayedPropertyChangeNotificationsOnItemOnPropertyBag() {
-            ItemOnPropertyBag i = new ItemOnPropertyBag();
+            IPropertyOwner i = new TestItems.ItemOnPropertyBag();
             List<string> log = CreateItemPropertyNotificationLog(i);
             i["Name"] = "Good name"; // ⚡Name Changing, Changed
             log.Add("after Name");
@@ -139,15 +136,10 @@ namespace Dbquity {
             i["Price"] = 144M;
             Assert.AreEqual(144M, i["Price"]);
             log.Clear();
-            Assert.AreEqual(PriceDefaultingError,
-                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i.SetToDefault("Price")).Message);
-            Assert.AreEqual(144M, i["Price"]);
-            Assert.AreEqual(PriceDefaultingError,
-                Assert.ThrowsException<ArgumentOutOfRangeException>(() => i["Price"] = null).Message);
-            Assert.AreEqual(144M, i["Price"]);
-            Assert.AreEqual(0, log.Count);
+            i["Price"] = null;
+            Assert.AreEqual(0M, i["Price"]);
             i["Price"] = 89M;
-            CollectionAssert.AreEqual(new[] { "-Price: 144", "+Price: 89" }, log);
+            CollectionAssert.AreEqual(new[] { "-Price: 144", "+Price: 0", "-Price: 0", "+Price: 89" }, log);
         }
     }
 }

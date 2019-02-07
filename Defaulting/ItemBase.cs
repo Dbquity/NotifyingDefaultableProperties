@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Dbquity;
+using Dbquity.Implementation;
+using System;
 using System.ComponentModel;
 
-namespace Dbquity {
-    using Implementation;
+namespace Defaulting.TestItems {
 
     abstract class ItemBase : IPropertyOwner {
         public event PropertyChangingEventHandler PropertyChanging;
